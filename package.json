@@ -1,0 +1,1 @@
+{"name":"scalp-engine","version":"1.0.0","type":"module","scripts":{"scan":"node scripts/run.mjs","test":"node scripts/selftest.mjs"}}

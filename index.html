@@ -1,0 +1,36 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scalp Engine</title><style>
+:root{--bg:#fff;--fg:#1a1a1a;--mu:#666;--bd:#ddd;--cd:#f6f6f4;--g:#0a7d3c;--r:#c0262d}
+@media(prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--mu:#9a9a9a;--bd:#333;--cd:#202020;--g:#4cc58a;--r:#ff6b6b}}
+body{margin:0;padding:16px;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,sans-serif}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:15px;margin:22px 0 8px}.mu{color:var(--mu)}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}
+.L{color:var(--g);font-weight:600}.S{color:var(--r);font-weight:600}.b{display:inline-block;padding:0 6px;border:1px solid var(--bd);border-radius:10px;font-size:12px}
+input{width:90px;padding:4px;background:var(--bg);color:var(--fg);border:1px solid var(--bd);border-radius:4px}
+</style></head><body>
+<h1>Scalp Engine</h1><div class="mu" id="meta">memuat…</div>
+<div class="card row"><b>Kalkulator risiko</b>Ekuitas $<input id="eq" type="number" value="1000"> Risiko/trade <input id="rk" type="number" step="0.1" value="0.5">%</div>
+<h2>Sinyal aktif</h2><div class="tw" id="sig"></div>
+<h2>Corong penyaringan</h2><div class="card" id="fun"></div>
+<h2>Kinerja uji maju (setelah biaya 0,1%)</h2><div class="card" id="st"></div>
+<h2>Riwayat terakhir</h2><div class="tw" id="his"></div>
+<p class="mu">Bukan saran finansial. Parameter adalah hipotesis dari materi Eliz dan belum terbukti punya edge; nilai hasilnya dari jurnal setelah minimal 100 trade terisi. Simulasi pesimis: jika SL dan TP di bar yang sama, dihitung SL.</p>
+<script>
+const $=s=>document.querySelector(s),J=u=>fetch(u+'?'+Date.now()).then(r=>r.json()).catch(()=>null);
+const F=n=>n==null?'-':n>=100?n.toFixed(2):n>=1?n.toFixed(4):n.toPrecision(4),esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let sigs=[];try{$('#eq').value=localStorage.eq||1000;$('#rk').value=localStorage.rk||0.5}catch(e){}
+function drawSig(){try{localStorage.eq=$('#eq').value;localStorage.rk=$('#rk').value}catch(e){}
+ const eq=+$('#eq').value,rk=+$('#rk').value;
+ $('#sig').innerHTML=sigs.length?`<table><tr><th>Koin</th><th>Arah</th><th>Skor</th><th>Entry</th><th>SL</th><th>TP1 / TP2</th><th>SL%</th><th>Ukuran</th><th>Status</th><th>Alasan</th></tr>`+sigs.map(s=>{
+  const n=eq*rk/100/(s.slp/100);return`<tr><td>${esc(s.sym)}</td><td class="${s.side=='LONG'?'L':'S'}">${s.side}</td><td>${s.score} <span class="b">${s.grade}</span></td><td>${F(s.entry)}</td><td>${F(s.sl)}</td><td>${F(s.tp1)} / ${F(s.tp2)}</td><td>${s.slp}%</td><td>$${n.toFixed(0)} (${(n/eq).toFixed(1)}x)</td><td>${s.hasil}</td><td style="white-space:normal;min-width:260px">${s.trig.join('+')}: ${s.why.map(esc).join('; ')}</td></tr>`}).join('')+'</table>':'<div class="card mu">Belum ada sinyal aktif. Tidak ada setup juga merupakan hasil yang valid.</div>'}
+['eq','rk'].forEach(i=>$('#'+i).oninput=drawSig);
+(async()=>{const [r,s,j]=await Promise.all([J('data/report.json'),J('data/signals.json'),J('data/journal.json')]);sigs=s||[];drawSig();
+ if(r){const b=r.btc;$('#meta').textContent=`Status: ${r.status}${r.generatedAt?' | '+new Date(r.generatedAt).toLocaleString('id-ID'):''}${b?` | BTC 1D ${b.t1>0?'naik':b.t1<0?'turun':'datar'}, 4H ${b.t4>0?'naik':b.t4<0?'turun':'datar'}, 6 jam ${b.mv6.toFixed(2)}%`:''}`;
+  const f=r.funnel||{};$('#fun').innerHTML=`Pindai ${f.scanned??'-'} dari ${f.universe??'-'} | kandidat ${f.candidates??'-'} | dipublikasi ${f.published??'-'}<br>`+Object.entries(f.rejects||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="b">${k} ${v}</span>`).join(' ');
+  const t=r.stats||{},m=t.terisi;const tb=o=>Object.entries(o||{}).map(([k,v])=>`<tr><td>${k}</td><td>${v.n}</td><td>${v.win}%</td><td>${v.avgR}R</td><td>${v.pf??'-'}</td></tr>`).join('');
+  $('#st').innerHTML=m?`Terisi ${m.n} | win ${m.win}% | rata-rata ${m.avgR}R | PF ${m.pf??'-'} | tidak terisi ${t.tidakTerisi} | batal ${t.batal}<div class="tw"><table><tr><th>Kelompok</th><th>n</th><th>Win</th><th>Avg R</th><th>PF</th></tr>${tb(t.perPemicu)}${tb(t.perGrade)}${tb(t.perSisi)}</table></div><div class="mu">${t.catatan||''}</div>`:'Belum ada data.'}
+ const h=(j||[]).filter(x=>!['MENUNGGU','OPEN'].includes(x.hasil)).slice(-20).reverse();
+ $('#his').innerHTML=h.length?'<table><tr><th>Waktu</th><th>Koin</th><th>Arah</th><th>Pemicu</th><th>Skor</th><th>Hasil</th><th>R bersih</th></tr>'+h.map(x=>`<tr><td>${new Date(x.t).toLocaleString('id-ID')}</td><td>${esc(x.sym)}</td><td class="${x.side=='LONG'?'L':'S'}">${x.side}</td><td>${x.trig.join('+')}</td><td>${x.score}</td><td>${x.hasil}</td><td>${x.Rnet??'-'}</td></tr>`).join('')+'</table>':'<div class="mu">Belum ada.</div>'})();
+</script></body></html>
