@@ -1,0 +1,43 @@
+name: scalp-engine
+on:
+  schedule:
+    - cron: "7 * * * *"          # tiap jam, 7 menit setelah candle 1H tutup
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["lib/**","scripts/**","index.html","config.json",".github/workflows/**"]
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: scalp
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node scripts/selftest.mjs
+      - run: node scripts/run.mjs
+      - name: Simpan jurnal
+        run: |
+          git config user.name "scalp-bot"
+          git config user.email "scalp-bot@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || (git commit -m "data: $(date -u +%F_%H%M)" && git pull --rebase -q && git push)
+      - run: mkdir _site && cp index.html _site/ && cp -r data _site/data
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+  deploy:
+    needs: scan
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
