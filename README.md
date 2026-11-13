@@ -12,7 +12,7 @@ Mesin analisis scalping crypto (Binance spot USDT) berbasis metode Eliz, dengan 
 1H dipindai pada top 40 koin (volume >= $30 juta): deviasi/double deviation, breakout-retest, sapuan Monday, pullback Fib 0,70-0,79 (4H), divergensi OBV 4H.
 Gerbang: tren 1D (lawan tren butuh >= 2 konfirmasi), filter mid-range, konfirmasi candle, SL 0,6-4% (min 1x ATR), RR >= 2,5, usang, gerbang BTC (fail closed), agenda makro.
 Skor 0-100 (min 60; A >= 75). Maks 5 sinyal/jam, 3 per sisi, cooldown 6 jam setelah SL.
-Tabel Riwayat menampilkan waktu analisis dan waktu hasil (kapan hasil final terjadi; field `tx` di jurnal, sinyal lama tanpa `tx` tampil `-`).
+Tabel Riwayat menampilkan waktu analisis, waktu hasil, serta Entry, SL, TP1/TP2 dan Risiko (SL%) tiap sinyal; waktu hasil (kapan hasil final terjadi; field `tx` di jurnal, sinyal lama tanpa `tx` tampil `-`).
 Hasil disimulasikan di `data/journal.json`: limit terisi <= 12 bar, 60% di TP1 (1,5R) lalu SL ke BE, sisa ke TP2, biaya 0,1%, bar yang sama dihitung SL.
 
 ## Pengaturan
