@@ -12,4 +12,8 @@ r=resolve(s,[B(99.8,100.4),B(100.1,101.6),B(99.9,100.5)]);ok(r.hasil==='TP1+BE'&
 r=resolve(s,[B(100.5,101.6)]);ok(r.hasil==='BATAL','TP tersentuh sebelum terisi = batal');
 r=resolve(s,Array.from({length:CFG.fillBars+1},()=>B(100.5,100.9)));ok(r.hasil==='TIDAK-TERISI','tidak terisi dalam 12 bar');
 r=resolve({...s,side:'SHORT',entry:100,sl:101,tp1:98.5,tp2:97},[B(99.6,100.2),B(99.0,100.2)]);ok(r.hasil==='OPEN','SHORT terisi, masih berjalan');
+const T=(i,l,h)=>({t:1e12+i*36e5,o:100,c:100,l,h});
+r=resolve(s,[T(0,99.8,100.4),T(1,100.1,101.6),T(2,100.2,103.1)]);ok(r.hasil==='TP2'&&r.tx===1e12+2*36e5,'waktu hasil (tx) = candle saat TP2 tercapai');
+r=resolve(s,[T(0,99.8,100.4),T(1,98.9,100.3)]);ok(r.hasil==='SL'&&r.tx===1e12+36e5,'waktu hasil (tx) = candle saat SL');
+r=resolve(s,[T(0,99.8,100.4)]);ok(r.hasil==='OPEN'&&r.tx===undefined,'posisi OPEN belum punya waktu hasil');
 console.log(f?`${f} GAGAL`:'SEMUA LULUS');process.exit(f?1:0);
