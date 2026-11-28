@@ -1,0 +1,208 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Monitor scalping</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mu:#666;--bd:#ddd;--r:#c0392b;--y:#b7791f;--g:#1e8449;--c:#f6f6f6;--b:#2f7bff;--p:#8e5bd0}
+@media(prefers-color-scheme:dark){:root{--bg:#121212;--fg:#eee;--mu:#999;--bd:#333;--r:#ff6b5b;--y:#e0b050;--g:#4cd137;--c:#1c1c1c;--b:#5b9bff;--p:#b48cf0}}
+body{margin:0 auto;padding:12px;font:14px system-ui,sans-serif;background:var(--bg);color:var(--fg);max-width:1180px}
+h1{font-size:18px;margin:6px 0}h2{font-size:15px;margin-top:22px}
+.card{background:var(--c);border:1px solid var(--bd);border-radius:8px;padding:10px;margin:8px 0}
+.w{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border-bottom:1px solid var(--bd);padding:4px 6px;text-align:left;white-space:nowrap}
+.merah{color:var(--r)}.kuning{color:var(--y)}.ok,.TP{color:var(--g)}.SL{color:var(--r)}.PARSIAL{color:var(--p)}.TIME{color:var(--y)}.info,.mu{color:var(--mu)}
+button,select,input{padding:6px 10px;margin:2px;border:1px solid var(--bd);background:var(--c);color:var(--fg);border-radius:6px;font:inherit}
+textarea{width:100%;height:140px;background:var(--c);color:var(--fg);border:1px solid var(--bd);box-sizing:border-box}
+small{color:var(--mu)}.kol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px}
+.biru{border-color:var(--b);background:rgba(47,123,255,.13)}.hijau{border-color:var(--g);background:rgba(30,132,73,.13)}
+.hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:22px}.hd h2{margin:0}
+button.aktif{background:var(--b);border-color:var(--b);color:#fff;font-weight:600}button:disabled{opacity:.45;cursor:default}button{cursor:pointer}
+.pg{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:6px 0}.pg .pi{flex:1 1 100%;color:var(--mu);font-size:12px}.pg span.dot{color:var(--mu);padding:0 2px}
+svg.sp{vertical-align:middle}
+</style></head><body>
+<h1>Monitor mesin scalping: sc · sctn · sctnv2 · sctnv3 · sctnv4 · scv2 · scv5 · scv6</h1>
+<small id="up"></small> <button id="zbtn" onclick="zonaGanti()"></button>
+<div id="app">Memuat…</div>
+<script src="vendor/xlsx.full.min.js"></script>
+<script>
+const f=(x,d=2)=>x==null||!isFinite(x)?'-':(+x).toFixed(d),pc=x=>x==null?'-':Math.round(x*100)+'%';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DMS=864e5;
+const LS={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch{}}};
+let ZONA=LS.get('zona')||'WIB';
+const fmtT=ms=>ms?new Date(ms+(ZONA==='WIB'?7*36e5:0)).toISOString().slice(0,16).replace('T',' '):'-';
+const hold=m=>m==null||!isFinite(m)?'-':m<90?Math.round(m)+' mnt':(m/60).toFixed(1)+' j';
+const durasi=r=>r.tx&&(r.tf||r.t)?(r.tx-(r.tf||r.t))/6e4:null;
+let D=null,cur=0,remote={},fbOnline=null,fbMsg='Memuat status penyimpanan…';
+window.onRemote=(m,ok,msg)=>{remote=m||{};fbOnline=ok;fbMsg=msg||'';if(D)draw()};
+function zonaGanti(){ZONA=ZONA==='WIB'?'UTC':'WIB';LS.set('zona',ZONA);draw()}
+fetch('data.json?'+Date.now()).then(r=>{if(!r.ok)throw new Error('data.json HTTP '+r.status);return r.text()})
+ .then(t=>{D=JSON.parse(t);draw()}).catch(e=>showErr('Gagal memuat data:',e.message));
+function showErr(t,m){document.getElementById('app').innerHTML='<div class="card"><b class="merah">'+esc(t)+'</b> '+esc(m)+'<br><small>Salin pesan ini ke Claude.</small></div>'}
+function draw(){if(!D)return;try{document.getElementById('zbtn').textContent='Zona waktu: '+ZONA;document.getElementById('up').textContent='Diperbarui '+fmtT(Date.parse(D.updated))+' '+ZONA+' · penilaian = hasil jurnal mesin · biaya monitor '+D.cfg.costPct+'% pulang-pergi';document.getElementById('app').innerHTML=html()}catch(e){showErr('Error tampilan:',e.stack||e.message)}}
+
+function lapTanggal(id){return fbOnline===true?(remote[id]||''):(LS.get('lap:'+id)||'')}
+const wibHari=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,10);
+const selisih=d=>Math.round((Date.parse(wibHari())-Date.parse(d))/DMS);
+let LK=[];
+function lapKolom(){return (D.log||[]).filter(l=>{const k=selisih(l.d);return k>=1&&k<=3}).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0)}
+function lapState(l){const r=lapTanggal(l.id);if(r)return{c:'hijau',r};return{c:l.d&&selisih(l.d)>=3?'biru':'',r:''}}
+
+function barAtas(){let b='';
+ if(D.elizAge!=null&&D.elizAge>3)b+=`<div class="card"><b class="kuning">PENGINGAT</b> Postingan @eliz883 terakhir di monitor ${Math.round(D.elizAge)} hari lalu. Lampirkan postingan terbaru di chat Claude.</div>`;
+ const biru=lapKolom().filter(l=>lapState(l).c==='biru').length;
+ if(biru)b+=`<div class="card biru"><b>${biru} laporan belum dikirim ke Claude lebih dari 3 hari.</b> Lihat bagian Laporan untuk Claude.</div>`;
+ const g=D.regime;
+ if(g)b+=`<div class="card"><b class="${g.status==='NORMAL'?'ok':g.status==='SELEKTIF'?'kuning':'merah'}">Pasar: ${esc(g.status)}</b> ${esc(g.flags.join('; ')||'kondisi normal')}<br><small>BTC 1H: ATR14 ${f(g.atr1h)}% · range 24 jam ${f(g.range24,1)}% · volume altcoin ${f(g.volRatio)}x (median 7/60 hari) · BTC ${f(g.btcVr)}x${D.eur?' · EUR/USD '+esc(D.eur.arah)+' ('+f(D.eur.d3)+'% 3 hari, informasi saja)':''}</small></div>`;
+ const stale=D.engines.filter(e=>e.sumber.jenis==='arsip');
+ if(stale.length)b+=`<div class="card"><b class="merah">DATA DARI ARSIP</b> ${stale.map(e=>esc(e.id)).join(', ')}: jurnal live tidak terbaca, angka memakai arsip monitor.</div>`;
+ return b+makroBar()}
+
+function spark(pts){if(!pts||pts.length<2)return '<span class="mu">-</span>';const w=110,h=26,ys=pts.map(p=>p[1]),mn=Math.min(0,...ys),mx=Math.max(0,...ys),sp=mx-mn||1;
+ const X=i=>(i/(pts.length-1))*w,Y=v=>h-2-((v-mn)/sp)*(h-4);
+ return `<svg class="sp" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><line x1="0" x2="${w}" y1="${Y(0)}" y2="${Y(0)}" stroke="currentColor" opacity=".3" stroke-dasharray="2 2"/><polyline fill="none" stroke="${ys.at(-1)>=0?'#1e8449':'#c0392b'}" stroke-width="1.5" points="${pts.map((p,i)=>X(i).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/></svg> <small>${f(ys.at(-1),1)}R</small>`}
+
+function html(){const E=D.engines;let h=barAtas();
+ h+='<h2>Perbandingan</h2><div class="card w"><table><tr><th>Mesin<th>Sinyal<th>Selesai<th>Isi%<th>TP/Parsial/SL/Time<th>Win R&gt;0 (CI95)<th>R/trade<th>R mesin<th>PF<th>MaxDD (R)<th>Hold median<th>Minggu<th>Sejak '+esc(D.commonStart)+': selesai · R/trade<th>LONG R (n)<th>SHORT R (n)<th>Ekuitas (R bersih)<th>Layak uang nyata?</tr>';
+ for(const e of E){const a=e.all;h+=`<tr><td><b>${esc(e.nama)}</b><td>${a.sinyal}<td>${a.terisi}<td>${pc(a.isiPct)}${e.fillAsumsi>.2?'<sup class="kuning" title="pengisian diasumsikan">*</sup>':''}<td>${a.tp}/${a.parsial}/${a.sl}/${a.time}<td>${pc(a.win)} ${a.winCI?'('+pc(a.winCI[0])+'-'+pc(a.winCI[1])+')':''}<td class="${a.netR>0?'ok':a.netR<0?'merah':''}">${f(a.netR)}<td>${f(a.rMesin)}<td>${f(a.pf)}<td>${f(a.dd,1)}<td>${hold(a.holdMed)}<td>${a.minggu}<td>${e.sejakBersama.terisi} · ${f(e.sejakBersama.netR)}<td>${f(e.dir.LONG.netR)} (${e.dir.LONG.terisi})<td>${f(e.dir.SHORT.netR)} (${e.dir.SHORT.terisi})<td>${spark(e.equity)}<td class="${e.layak?'ok':'merah'}">${e.layak?'LAYAK':'BELUM'}</tr>`}
+ h+='</table><small>R/trade = R kotor dipulihkan dari jurnal mesin lalu dipotong biaya monitor (sama untuk semua mesin). "R mesin" = rata-rata R bersih versi mesin sendiri (kosong bila mesin tidak memotong biaya). Win R&gt;0 menghitung trade parsial positif sebagai menang. * = pengisian limit tidak dimodelkan mesin (hasil cenderung optimis).</small></div>';
+ h+='<h2>Syarat uang sungguhan</h2>';
+ for(const e of E)h+=`<div class="card"><b>${esc(e.nama)}</b>: `+e.ready.map(x=>`<span class="${x[0]?'ok':'merah'}">${x[0]?'✔':'✖'} ${esc(x[1])}</span>`).join(' · ')+'</div>';
+ h+=kualitasHtml()+makroHtml()+'<h2>Warning</h2>';
+ const o={merah:0,kuning:1,info:2};for(const w of D.warnings.map((x,i)=>[x,i]).sort((a,b)=>o[a[0].lvl]-o[b[0].lvl]||a[1]-b[1]).map(x=>x[0]))h+=`<div class="card"><b class="${esc(w.lvl)}">${esc(w.lvl.toUpperCase())}</b> [${esc(w.e)}] ${esc(w.t)}${w.aksi?'<br><small>Aksi: '+esc(w.aksi)+'</small>':''}</div>`;
+ h+=corongHtml();
+ h+='<div id="psec">'+pSecHtml()+'</div><div id="jsec">'+jSecHtml()+'</div>';
+ h+=ujiHtml();
+ if(D.audit)h+='<h2>Audit lapisan keputusan</h2><div class="card">'+(D.audit.grup.map(g=>esc(g.g)+': n='+g.n+', TP '+g.tp+', R/trade '+f(g.r)).join(' · ')||'Belum ada sinyal selesai')+'<br><small>'+esc(D.audit.catatan)+'</small></div>';
+ h+=makroUjiHtml()+tharpHtml()+levelHtml()+paruhHtml();
+ h+='<h2>@eliz883: kecocokan</h2><div class="card">Postingan terakhir di monitor: '+esc(D.eliz.lastPost||'-')+'<br>Ticker disebut: '+esc(D.eliz.tickers.join(', ')||'-')+'<div class="w"><table>'+D.eliz.cocok.map(c=>`<tr><td>$${esc(c.t)}<td>`+c.sinyal.map(s=>esc(s.e)+': '+esc(s.n.join('; ')||'tidak ada sinyal')).join(' | ')+'</tr>').join('')+'</table></div><small>Postingan baru: lampirkan (.docx) di chat Claude; Claude memberi data/eliz-posts.json terbaru.</small></div>';
+ return h+lapHtml()}
+
+function kualitasHtml(){let h='<h2>Kualitas data per mesin</h2><div class="kol">';
+ for(const e of D.engines){const s=e.sumber;h+=`<div class="card"><b>${esc(e.id)}</b> <small>${esc(e.adapter)} · ${s.baris} baris${s.dariArsip?' ('+s.dariArsip+' dari arsip)':''}${s.salah?' · '+s.salah+' baris tak valid':''}${e.warisan?' · '+e.warisan+' warisan dikeluarkan':''}</small><br><span class="${s.jenis==='live'?'ok':'merah'}">${s.jenis==='live'?'live':'ARSIP'}</span> <small>${s.umurJam!=null?'sumber diperbarui '+f(s.umurJam,1)+' jam lalu · ':''}${s.umurBarisJam!=null?'baris terakhir '+f(s.umurBarisJam,1)+' jam lalu':''}</small>`+(e.kualitas.length?'<ul style="margin:6px 0 0 16px;padding:0">'+e.kualitas.map(k=>`<li class="${esc(k.lvl)}"><small>${esc(k.t)}</small></li>`).join('')+'</ul>':'<br><small class="ok">tidak ada catatan metodologi</small>')+'</div>'}
+ return h+'</div>'}
+
+function corongHtml(){let h='<h2>Corong sinyal</h2><div class="card w"><table><tr><th>Mesin<th>Sinyal<th>Menunggu<th>Tidak terisi<th>Batal<th>Terbuka<th>Selesai<th>SL beruntun (sekarang / terpanjang)<th>Hold P90</tr>';
+ for(const e of D.engines){const c=e.corong,a=e.all;h+=`<tr><td><b>${esc(e.id)}</b><td>${c.sinyal}<td>${c.menunggu}<td>${c.tdkIsi}<td>${c.batal}<td>${c.terbuka}<td>${c.selesai}<td>${a.streakSL} / ${a.maxStreakSL}<td>${hold(a.holdP90)}</tr>`}
+ return h+'</table><small>Tidak terisi = limit kedaluwarsa; Batal = TP1 tercapai sebelum entry terisi.</small></div>'}
+
+function grupTbl(judul,g,cat){if(!g||!g.length)return `<div class="card"><b>${esc(judul)}</b>: belum ada data</div>`;
+ return `<div class="card w"><b>${esc(judul)}</b><table><tr><th>Grup<th>n<th>TP<th>SL<th>Win R&gt;0<th>R/trade ± galat baku<th>PF</tr>`+g.map(x=>`<tr><td>${esc(x.g)}<td>${x.n}<td>${x.tp}<td>${x.sl}<td>${pc(x.win)}<td class="${x.r>0?'ok':'merah'}">${f(x.r)}${x.se!=null?' ± '+f(x.se):''}<td>${f(x.pf)}</tr>`).join('')+`</table><small>${esc(cat||'')}</small></div>`}
+function ujiHtml(){let h='<h2>Uji hipotesis (jangan jadi aturan sebelum tiap grup &ge; 30 trade)</h2>';
+ h+=grupTbl('Per mesin dan setup/trigger',D.ujiSetup,'Gabungan baris tiap mesin; R sesudah biaya monitor.');
+ h+=grupTbl('Sesi perdagangan (jam sinyal, UTC)',D.ujiSesi,'Gabungan semua mesin; sinyal antar mesin berkorelasi. Selisih < ~2 galat baku belum berarti.');
+ h+=grupTbl('Lebar stop vs biaya',D.ujiStop,'Stop sempit membuat biaya tetap memakan banyak R.');
+ if(D.ujiAkhirPekan)h+=grupTbl('Akhir pekan vs hari kerja',D.ujiAkhirPekan,'Hipotesis dari postingan @eliz883 (candle Sabtu, order book kosong).');
+ if(D.ujiHarian)h+='<div class="card"><b>Batas harian</b> '+D.ujiHarian.cap+' sinyal/mesin/hari. Hari ini: '+D.ujiHarian.hariIni+' sinyal, '+D.ujiHarian.lewatHariIni+' melewati batas.<br>'+(D.ujiHarian.grup||[]).map(g=>esc(g.g)+': n='+g.n+', TP '+g.tp+', R/trade '+f(g.r)).join(' · ')+'</div>';
+ if(D.ujiEliz)h+='<div class="card"><b>Volume vs @eliz883</b> Postingan orderbook tipis: '+(D.ujiEliz.postOrderbookTipis??0)+'. Postingan volume rendah: '+D.ujiEliz.postVolumeRendah+'. Hari terukur: '+D.ujiEliz.hariTerukur+'. Cocok: '+D.ujiEliz.cocok+'.'+(D.ujiEliz.sebaran?'<br>Sebaran 21 hari: '+D.ujiEliz.sebaran.rendah+'/'+D.ujiEliz.sebaran.n+' hari di bawah ambang; min '+f(D.ujiEliz.sebaran.min)+', median '+f(D.ujiEliz.sebaran.med)+', maks '+f(D.ujiEliz.sebaran.max):'')+'<br><small>'+esc(D.ujiEliz.catatan)+'</small></div>';
+ return h}
+
+const wibFmt=iso=>new Date(iso).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false});
+function relJam(iso){const h=(Date.parse(iso)-Date.now())/36e5,a=Math.abs(h),s=a<1?Math.round(a*60)+' menit':a<48?a.toFixed(1)+' jam':(a/24).toFixed(1)+' hari';return h>=0?s+' lagi':s+' lalu'}
+function makroBar(){const M=D.makro;if(!M||M.galat||!M.berikut)return M&&M.galat?'<div class="card"><b class="kuning">MAKRO</b> '+esc(M.galat)+'</div>':'';
+ const n=Date.now(),A=M.berikut.filter(e=>{const h=(Date.parse(e.utc)-n)/36e5;return e.impact!=='rendah'&&h<=72&&h>=-e.sesudahJam});
+ if(!A.length){const x=M.berikut.find(e=>Date.parse(e.utc)>n);return '<div class="card"><small>Kalender makro: tidak ada rilis berdampak dalam 72 jam.'+(x?' Berikutnya: '+esc(x.jenis)+' '+relJam(x.utc)+' ('+esc(wibFmt(x.utc))+' WIB).':'')+'</small></div>'}
+ return A.map(e=>{const h=(Date.parse(e.utc)-n)/36e5,c=e.impact==='tinggi'&&h<=24?(Math.abs(h)<=2?'merah':'kuning'):'info';
+  return `<div class="card"><b class="${c}">MAKRO</b> ${esc(e.nama)}: ${relJam(e.utc)} <small>(${esc(wibFmt(e.utc))} WIB)${c!=='info'?' · scalping: hindari membuka posisi baru sampai reaksi pertama reda':''}</small></div>`}).join('')}
+function makroHtml(){const M=D.makro;if(!M||!M.berikut)return '';
+ let h='<h2>Kalender makro</h2><div class="card w"><table><tr><th>Waktu (WIB)<th>Jenis<th>Dampak<th>Hitung mundur<th>Rilis</tr>';
+ for(const e of M.berikut)h+=`<tr><td>${esc(wibFmt(e.utc))}<td><b>${esc(e.jenis)}</b><td class="${e.impact==='tinggi'?'merah':e.impact==='sedang'?'kuning':'info'}">${esc(e.impact)}<td>${relJam(e.utc)}<td>${esc(e.nama)}</tr>`;
+ const K=M.sinkron||{};const kt=K.t?' · terakhir '+esc(wibFmt(K.t))+' WIB':'';
+ return h+'</table><small>Sumber resmi: Fed &amp; BLS, disinkronkan otomatis tiap build. Status sinkron: <b class="'+(K.status==='live'||K.status==='cache'?'ok':K.status==='sebagian'?'kuning':K.status==='nonaktif'?'info':'merah')+'">'+esc(K.status||'-')+'</b>'+(K.fontes||[]).map(f=>' · '+esc(f.s)+(f.ok?' ✓':' ✗')+(f.stale?' (cache)':'')).join('')+kt+'. Cadangan: data/events.json (versi '+esc(M.versi||'-')+'). Hanya informasi: mesin tidak diubah.</small></div>'}
+function makroUjiHtml(){const U=D.makro&&D.makro.uji;if(!U)return '';
+ const r=g=>esc(g.g)+': n='+g.n+', TP '+g.tp+', R/trade '+f(g.r)+(g.se!=null?' ± '+f(g.se):'');
+ return '<h2>Uji jendela event (hipotesis)</h2><div class="card">'+U.grup.map(r).join(' · ')+(U.perJenis.length?'<br>'+U.perJenis.map(r).join(' · '):'')+'<br><small>Jendela tinggi −'+U.jendela.sebelumJam.tinggi+'j/+'+U.jendela.sesudahJam.tinggi+'j, sedang −'+U.jendela.sebelumJam.sedang+'j/+'+U.jendela.sesudahJam.sedang+'j. '+esc(U.catatan)+'</small></div>'}
+
+let jq='',jpg=1,pcur=-1,ppg=1;const PER=15;
+function pgNums(n,c){const t=Math.max(1,Math.ceil(n/PER));if(t<=7)return Array.from({length:t},(_,i)=>i+1);const o=[1];let a=Math.max(2,c-1),z=Math.min(t-1,c+1);if(c<=3){a=2;z=4}if(c>=t-2){a=t-3;z=t-1}if(a>2)o.push(0);for(let i=a;i<=z;i++)o.push(i);if(z<t-1)o.push(0);o.push(t);return o}
+function pgClamp(n,p){const t=Math.max(1,Math.ceil(n/PER));return Math.min(Math.max(1,p),t)}
+function pgHtml(n,p,fn){const t=Math.max(1,Math.ceil(n/PER)),a=n?(p-1)*PER+1:0,z=Math.min(n,p*PER);
+ return '<div class="pg"><span class="pi">Menampilkan '+a+'–'+z+' dari '+n+' baris</span><button '+(p<=1?'disabled ':'')+'onclick="'+fn+'('+(p-1)+')">Previous</button>'+pgNums(n,p).map(x=>x?'<button class="'+(x===p?'aktif':'')+'" onclick="'+fn+'('+x+')">'+x+'</button>':'<span class="dot">…</span>').join('')+'<button '+(p>=t?'disabled ':'')+'onclick="'+fn+'('+(p+1)+')">Next</button></div>'}
+const numOr=v=>{if(typeof v==='number')return v;if(typeof v==='string'&&/^-?\d+(\.\d+)?$/.test(v.trim()))return +v;return v==null?'':v};
+function xlsDown(sheets,nama){
+ const go=()=>{try{const wb=XLSX.utils.book_new(),used=new Set();
+  for(const sh of sheets){const ws=XLSX.utils.aoa_to_sheet([sh.head,...sh.rows]);
+   ws['!cols']=sh.head.map((h,i)=>({wch:Math.min(60,Math.max(String(h).length+2,...sh.rows.slice(0,300).map(r=>String(r[i]??'').length+2)))}));
+   if(sh.rows.length)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:sh.rows.length,c:sh.head.length-1}})};
+   let nm=String(sh.name).replace(/[\\\/?*\[\]:]/g,'_').slice(0,31)||'Sheet',k=2;while(used.has(nm.toLowerCase()))nm=nm.slice(0,28)+'_'+k++;used.add(nm.toLowerCase());
+   XLSX.utils.book_append_sheet(wb,ws,nm)}
+  const d=new Date(Date.now()+7*36e5).toISOString().slice(0,16).replace(/[-:]/g,'').replace('T','-');
+  XLSX.writeFile(wb,nama+'-'+d+'-WIB.xlsx')}catch(e){alert('Gagal membuat file Excel: '+(e.message||e))}};
+ if(window.XLSX)return go();
+ const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=go;sc.onerror=()=>alert('Library SheetJS (xlsx) gagal dimuat.');document.head.appendChild(sc)}
+
+// ===== SINYAL MENUNGGU / TERBUKA =====
+function pAll(){const o=[];D.engines.forEach((e,ei)=>(e.pending||[]).forEach((r,ri)=>o.push({e,r,ei,ri})));return o}
+function pSort(a){return a.slice().sort((x,y)=>y.r.t-x.r.t||(x.ei-y.ei))}
+function pSel(){const a=pAll();return pSort(pcur>=0&&D.engines[pcur]?a.filter(x=>x.ei===pcur):a)}
+function pRow(x){const e=x.e,r=x.r;return `<tr><td>${esc(e.id)}<td>${esc(r.a)}<td>${esc(r.d)}<td>${esc(r.zona||r.en)}<td>${esc(r.sl)}<td>${esc(r.tp)}<td>${esc(r.px??'-')}<td>${r.dist==null?'-':f(r.dist)+'%'}<td>${fmtT(r.t)}<td>${hold(r.umur)}${r.zombie?' <b class="kuning">tertinggal?</b>':''}<td>${esc(r.st==='TERBUKA'?'TERBUKA':'menunggu')}<td><b>${esc(r.kp||'-')}</b><td>${esc(r.kn||'')}</tr>`}
+function pRows(){const a=pSel();ppg=pgClamp(a.length,ppg);return a.slice((ppg-1)*PER,ppg*PER).map(pRow).join('')}
+function pTabs(){return '<button class="'+(pcur<0?'aktif':'')+'" onclick="pTab(-1)">Semua</button>'+D.engines.map((e,i)=>`<button class="${pcur===i?'aktif':''}" onclick="pTab(${i})">${esc(e.id)}</button>`).join('')}
+function pSecHtml(){const n=pSel().length;
+ return '<div class="hd"><h2>Sinyal menunggu / terbuka (harga Binance saat ini)</h2><button onclick="pXls()">Download Excel (.xlsx)</button></div><div id="ptabs">'+pTabs()+'</div><div class="card w"><table><tr><th>Mesin<th>Koin<th>Arah<th>Entry<th>SL<th>TP1<th>Harga<th>Jarak ke entry<th>Waktu sinyal ('+ZONA+')<th>Umur<th>Status<th>Keputusan monitor<th>Catatan</tr><tbody id="pb">'+pRows()+'</tbody></table></div><div id="ppg">'+pgHtml(n,ppg,'pGo')+'</div>'}
+function pPart(){const n=pSel().length,b=document.getElementById('pb');if(!b)return;b.innerHTML=pRows();document.getElementById('ppg').innerHTML=pgHtml(n,ppg,'pGo');document.getElementById('ptabs').innerHTML=pTabs()}
+function pTab(i){pcur=i;ppg=1;pPart()}
+function pGo(n){ppg=pgClamp(pSel().length,n);pPart()}
+function pXls(){if(!D)return;const head=['Mesin','Koin','Arah','Entry/zona','SL','TP1','Harga','Jarak ke entry (%)','Waktu sinyal ('+ZONA+')','Umur (menit)','Status','Keputusan monitor','Catatan'];
+ const row=x=>{const r=x.r;return [x.e.id,r.a,r.d,r.zona||numOr(r.en),numOr(r.sl),numOr(r.tp),numOr(r.px),r.dist==null?'':+(+r.dist).toFixed(4),fmtT(r.t),Math.round(r.umur),r.st,r.kp||'',r.kn||'']};
+ const sh=[{name:'Semua',head,rows:pSort(pAll()).map(row)}];D.engines.forEach((e,ei)=>sh.push({name:e.id,head,rows:pSort(pAll().filter(x=>x.ei===ei)).map(row)}));xlsDown(sh,'sinyal-menunggu-scalping')}
+
+// ===== JURNAL ANALISIS =====
+function jSel(e){const q=jq.trim().toUpperCase();return q?e.jurnal.filter(r=>String(r.a).toUpperCase().includes(q)):e.jurnal}
+function jInfo(e){const n=jSel(e).length,q=jq.trim();return (q?'Hasil pencarian koin "'+esc(q)+'": '+n+' baris dari total '+e.jurnal.length+'. ':'Total '+e.jurnal.length+' baris (terbaru di atas, 15 per halaman); ketik nama koin untuk mencari. ')+'Waktu hasil = waktu keluar menurut jurnal mesin. * = pengisian diasumsikan; ◆ = baris dari arsip monitor.'}
+function jRows(e){const a=jSel(e);jpg=pgClamp(a.length,jpg);return a.slice((jpg-1)*PER,jpg*PER).map(r=>`<tr><td>${fmtT(r.t)}<td>${esc(r.a)}<td>${esc(r.d)}<td>${esc(r.zona||r.en)}${r.fa?'<sup class="kuning">*</sup>':''}${r.ar?'<sup>◆</sup>':''}<td>${esc(r.sl)}<td>${esc(r.tp)}<td>${esc(r.tp2??'')}<td class="${esc(r.h)}">${esc(r.h)}<td>${fmtT(r.tx)}<td>${hold(durasi(r))}<td>${f(r.Rg)}<td class="${r.Rn>0?'ok':r.Rn<0?'merah':''}">${f(r.Rn)}<td>${f(r.Rm)}<td>${esc(r.set||'')}<td>${esc(r.sk??'')}<td>${esc(r.al||'')}</tr>`).join('')}
+function jTabs(){return D.engines.map((e,i)=>`<button class="${cur===i?'aktif':''}" onclick="jTab(${i})">${esc(e.id)}</button>`).join('')}
+function jSecHtml(){const e=D.engines[cur];
+ let h='<div class="hd"><h2>Jurnal analisis</h2><button onclick="jXls()">Download Excel (.xlsx)</button></div><div id="jtabs">'+jTabs()+'</div>';
+ if(e)h+='<div><input id="jq" type="search" placeholder="Cari koin (mis. SOL)" value="'+esc(jq)+'" oninput="jqSet(this.value)"> <small id="jinfo">'+jInfo(e)+'</small></div><div class="card w"><table><tr><th>Waktu sinyal ('+ZONA+')<th>Koin<th>Arah<th>Entry<th>SL<th>TP1<th>TP2<th>Hasil<th>Waktu hasil ('+ZONA+')<th>Durasi<th>R kotor<th>R bersih<th>R mesin<th>Setup<th>Skor<th>Alasan</tr><tbody id="jb">'+jRows(e)+'</tbody></table></div><div id="jpg">'+pgHtml(jSel(e).length,jpg,'jGo')+'</div>';
+ return h}
+function jPart(){const e=D.engines[cur],b=document.getElementById('jb');if(!e||!b)return;b.innerHTML=jRows(e);document.getElementById('jinfo').innerHTML=jInfo(e);document.getElementById('jpg').innerHTML=pgHtml(jSel(e).length,jpg,'jGo');document.getElementById('jtabs').innerHTML=jTabs()}
+function jTab(i){cur=i;jpg=1;jPart()}
+function jGo(n){const e=D.engines[cur];if(!e)return;jpg=pgClamp(jSel(e).length,n);jPart()}
+function jqSet(v){jq=v;jpg=1;jPart()}
+function jXls(){if(!D)return;const head=['Mesin','Waktu sinyal ('+ZONA+')','Koin','Arah','Entry/zona','SL','TP1','TP2','Hasil','Waktu hasil ('+ZONA+')','Durasi (menit)','R kotor','R bersih','R mesin','Setup','Skor','Pengisian diasumsikan','Dari arsip','Alasan'];
+ const row=(e,r)=>{const d=durasi(r);return [e.id,fmtT(r.t),r.a,r.d,r.zona||numOr(r.en),numOr(r.sl),numOr(r.tp),numOr(r.tp2),r.h||'',fmtT(r.tx),d==null?'':Math.round(d),numOr(r.Rg),r.Rn==null?'':+r.Rn.toFixed(4),numOr(r.Rm),r.set||'',r.sk??'',r.fa?'Ya':'',r.ar?'Ya':'',r.al||'']};
+ const sh=[{name:'Semua',head,rows:D.engines.flatMap(e=>e.jurnal.map(r=>row(e,r)))}];D.engines.forEach(e=>sh.push({name:e.id,head,rows:e.jurnal.map(r=>row(e,r))}));xlsDown(sh,'jurnal-analisis-scalping')}
+
+function tharpHtml(){
+ let h='<h2>Uji ala Van Tharp</h2><div class="card w"><table><tr><th>Mesin<th>N<th>R/trade<th>SD<th>SQN<th>SQN100<th>Kelas<th>Biaya impas<th>R @0,1%<th>R @0,2%<th>R @0,3%<th>R @0,5%<th>3 teratas / untung<th>R tanpa 3 teratas</tr>';
+ for(const e of D.engines){const t=e.tharp;if(!t||!t.ok){h+=`<tr><td>${esc(e.id)}<td colspan="13">data belum cukup`;continue}
+  const b=t.biaya;h+=`<tr><td><b>${esc(e.id)}</b><td>${t.n}<td>${f(t.mean)}<td>${f(t.sd)}<td>${f(t.sqn)}<td>${f(t.sqn100)}<td>${esc(t.cls)}${t.n<30?' <span class="kuning">(N&lt;30)</span>':''}<td class="${t.be<D.cfg.costPct*1.5?'kuning':''}">${f(t.be)}%<td>${f(b[1].r)}<td>${f(b[3].r)}<td>${f(b[4].r)}<td>${f(b[5].r)}<td>${t.top3==null?'-':Math.round(t.top3*100)+'%'}<td>${f(t.meanEx3)}</tr>`}
+ h+='</table></div><div class="card w"><b>Distribusi R (jumlah trade per rentang)</b><table><tr><th>Mesin'+((D.engines.find(e=>e.tharp&&e.tharp.ok)||{tharp:{dist:[]}}).tharp.dist||[]).map(d=>'<th>'+esc(d.l)).join('')+'</tr>';
+ for(const e of D.engines)if(e.tharp&&e.tharp.ok)h+='<tr><td>'+esc(e.id)+e.tharp.dist.map(d=>'<td>'+d.n).join('')+'</tr>';
+ return h+'</table><small>SQN = akar(N) × rata-rata R ÷ simpangan baku R; jangan ditafsirkan sebelum N ≥ 30. Biaya impas = biaya pulang-pergi (%) yang membuat R/trade nol; pada scalping stop sempit angka ini yang menentukan.</small></div>'}
+function levelHtml(){
+ let h='<h2>Level unik (trade independen)</h2><div class="card w"><table><tr><th>Mesin<th>Selesai (baris)<th>Level unik<th>Duplikat<th>N efektif<th>R/trade (baris)<th>R/level<th>SD level<th>SQN level<th>TP/SL (level)<th>Level paling berulang</tr>';
+ for(const e of D.engines){const l=e.level;if(!l||!l.ok){h+=`<tr><td>${esc(e.id)}<td colspan="10">data belum cukup`;continue}
+  h+=`<tr><td><b>${esc(e.id)}</b><td>${l.n}<td>${l.u}${l.u<30?' <span class="kuning">(N&lt;30)</span>':''}<td>${l.dup}<td>${f(l.neff,0)}<td>${f(e.all.netR)}<td class="${l.mean>0?'ok':'merah'}">${f(l.mean)}<td>${f(l.sd)}<td>${f(l.sqn)}<td>${l.tp}/${l.sl}<td>${esc(l.big.a)} ${esc(l.big.d)} ${l.big.n}x</tr>`}
+ return h+'</table><small>Level = koin, arah, entry, SL, TP sama; sinyal berulang dihitung satu trade. N efektif (Kish) = N² ÷ jumlah(ukuran klaster²).</small></div>'}
+function paruhHtml(){
+ let h='<h2>Stabilitas (paruh awal vs paruh akhir)</h2><div class="card w"><table><tr><th>Mesin<th>Paruh 1: n<th>R/trade<th>Paruh 2: n<th>R/trade<th>7 hari terakhir: selesai<th>R/trade</tr>';
+ for(const e of D.engines){const p=e.all.paruh,s=e.tujuhHari;h+=`<tr><td><b>${esc(e.id)}</b>`+(p?`<td>${p[2]}<td>${f(p[0])}<td>${p[3]}<td class="${p[1]<0&&p[0]>0?'merah':''}">${f(p[1])}`:'<td colspan="4">belum cukup trade (&lt;10)')+`<td>${s.terisi}<td>${f(s.netR)}</tr>`}
+ return h+'</table><small>Urut waktu keluar. Edge yang hanya ada di paruh awal adalah tanda kebetulan/rezim; bukan pengganti uji walk-forward.</small></div>'}
+
+function lapKartu(l,judul,info,salin,live){const s=lapState(l),id=esc(l.id);
+ return `<div class="card ${s.c}"><b>${judul}</b><br><small>${info}</small><br><b>${s.c==='hijau'?'Sudah dilaporkan: '+esc(s.r):s.c==='biru'?'BELUM dilaporkan; hari terakhir tampil':'Belum dilaporkan'}</b><br><button onclick="lapCopy(${salin})">Salin laporan</button> <input type="date" id="d${id}" value="${esc(s.r||new Date().toISOString().slice(0,10))}"><button onclick="lapSave('${id}')">Simpan tanggal lapor</button>${s.r?`<button onclick="lapClear('${id}')">Hapus</button>`:''}<textarea readonly>${esc(live?D.laporan:l.md)}</textarea></div>`}
+function lapHtml(){LK=lapKolom();
+ let h='<h2>Laporan untuk Claude</h2><div class="card"><small>Status penyimpanan: '+esc(fbMsg)+'</small></div><small>Maksimal 4 kolom: sampai 3 laporan harian (per tanggal WIB, tampil 3 hari lalu hilang otomatis) + 1 laporan live. Biru = belum dilaporkan sampai hari terakhir tampil; hijau = sudah dilaporkan.</small><div class="kol">';
+ LK.forEach((l,i)=>{h+=lapKartu(l,'Kolom '+(i+1)+' · laporan '+esc(l.d),'Terakhir diperbarui '+esc(l.t.slice(0,16).replace('T',' '))+' UTC · tampil sisa '+(4-selisih(l.d))+' hari'+(l.rekon?' · <b>REKONSTRUKSI dari jurnal (bukan snapshot asli)</b>':''),i,false)});
+ h+=lapKartu({id:D.hariId,d:D.hariIni,md:''},'Kolom '+(LK.length+1)+' · LIVE ('+esc(D.hariIni||'')+')','Diperbarui '+esc(D.updated.slice(0,16).replace('T',' '))+' UTC; menjadi laporan harian mulai besok',"'live'",true);
+ return h+'</div>'}
+function lapCopy(i){navigator.clipboard.writeText(i==='live'?D.laporan:LK[i].md)}
+function lapSave(id){const v=document.getElementById('d'+id).value;if(/^\d{4}-\d{2}-\d{2}$/.test(v))writeTgl(id,v)}
+function lapClear(id){writeTgl(id,'')}
+async function writeTgl(id,v){
+ LS.set('lap:'+id,v);
+ if(window.LapDB){try{await window.LapDB.set(id,v);remote[id]=v;fbOnline=true;fbMsg='Tersimpan ke Firebase.'}catch(e){fbOnline=false;fbMsg='Gagal simpan ke Firebase ('+(e.code||e.message)+'). Tersimpan lokal saja.'}}
+ draw()}
+</script>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+import {getFirestore,doc,setDoc,collection,onSnapshot,serverTimestamp} from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js';
+const FIREBASE_CONFIG={apiKey:"AIzaSyAKFgWdeXzNkeAqZn40ylzWB6oF3cML5EY",authDomain:"monitortn.firebaseapp.com",projectId:"monitortn",storageBucket:"monitortn.firebasestorage.app",messagingSenderId:"767147872981",appId:"1:767147872981:web:ed61d90e2f9fab7108c85c"};
+try{
+ const db=getFirestore(initializeApp(FIREBASE_CONFIG));
+ // id laporan scalping berakhiran 0001, laporan monitortn berakhiran 0000: berbagi koleksi tanpa bentrok
+ onSnapshot(collection(db,'laporan'),
+  s=>{const m={};s.forEach(x=>{if(/0001$/.test(x.id))m[x.id]=x.data().tanggal||''});window.onRemote(m,true,'Tersambung ke Firebase (realtime).')},
+  e=>window.onRemote({},false,'Firebase tidak bisa dibaca ('+(e.code||e.message)+'). Memakai penyimpanan lokal browser.'));
+ window.LapDB={set:(id,v)=>setDoc(doc(db,'laporan',id),{tanggal:v,diperbarui:serverTimestamp()})};
+}catch(e){window.onRemote({},false,'Firebase gagal dimuat ('+e.message+'). Memakai penyimpanan lokal browser.')}
+</script>
+</body></html>

@@ -1,0 +1,232 @@
+{
+ "owner": "triasnugra",
+ "situs": "monitorsc",
+ "commonStart": null,
+ "minTrades": 200,
+ "minWeeks": 8,
+ "costPct": 0.2,
+ "dailyCap": 3,
+ "maxSinyalPerHari": 10,
+ "maksHoldJam": 6,
+ "jamBasi": 12,
+ "streakSL": 5,
+ "jurnalMaks": 2000,
+ "laporanSufiks": "0001",
+ "pasar": {
+  "volRendah": 0.9,
+  "atrMati1h": 0.25,
+  "atrEkstrem1h": 1.5,
+  "trendTipis1h": 0.15,
+  "maxJarakPct": 1.5,
+  "minKoin": 15
+ },
+ "engines": [
+  {
+   "id": "sc",
+   "nama": "Mesin sc",
+   "repo": "sc",
+   "adapter": "sc",
+   "start": null,
+   "kadaluwarsaMenit": 180,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "main",
+      "path": "data/journal.json"
+     },
+     {
+      "pages": "data/journal.json"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "data/journal.json"
+   }
+  },
+  {
+   "id": "sctn",
+   "nama": "Mesin sctn",
+   "repo": "sctn",
+   "adapter": "sctn",
+   "start": null,
+   "kadaluwarsaMenit": 1440,
+   "feeMesinPct": 0.1,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "main",
+      "path": "output/forward_test.json"
+     }
+    ],
+    "log": [
+     {
+      "cabang": "main",
+      "path": "output/signal_log.csv"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "output/forward_test.json",
+    "log": "output/signal_log.csv"
+   }
+  },
+  {
+   "id": "sctnv2",
+   "nama": "Mesin sctnv2",
+   "repo": "sctnv2",
+   "adapter": "sctn",
+   "start": null,
+   "kadaluwarsaMenit": 1440,
+   "feeMesinPct": 0.1,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "main",
+      "path": "output/forward_test.json"
+     }
+    ],
+    "log": [
+     {
+      "cabang": "main",
+      "path": "output/signal_log.csv"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "output/forward_test.json",
+    "log": "output/signal_log.csv"
+   }
+  },
+  {
+   "id": "sctnv3",
+   "nama": "Mesin sctnv3",
+   "repo": "sctnv3",
+   "adapter": "sctn",
+   "start": null,
+   "kadaluwarsaMenit": 1440,
+   "feeMesinPct": 0.1,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "main",
+      "path": "output/forward_test.json"
+     }
+    ],
+    "log": [
+     {
+      "cabang": "main",
+      "path": "output/signal_log.csv"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "output/forward_test.json",
+    "log": "output/signal_log.csv"
+   }
+  },
+  {
+   "id": "sctnv4",
+   "nama": "Mesin sctnv4",
+   "repo": "sctnv4",
+   "adapter": "sctnv4",
+   "start": null,
+   "kadaluwarsaMenit": 0,
+   "feeMesinPct": 0.16,
+   "berkas": {
+    "utama": [
+     {
+      "pages": "history.json"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "history.json"
+   }
+  },
+  {
+   "id": "scv2",
+   "nama": "Mesin scv2 (gerbang G0-G9)",
+   "repo": "scv2",
+   "adapter": "scv2",
+   "start": null,
+   "kadaluwarsaMenit": 120,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "data",
+      "path": "journal.json"
+     },
+     {
+      "pages": "data/journal.json"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "state/journal.json"
+   }
+  },
+  {
+   "id": "scv5",
+   "nama": "Mesin scv5 (jurnal hash-chain)",
+   "repo": "scv5",
+   "adapter": "scv5",
+   "start": null,
+   "kadaluwarsaMenit": 180,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "main",
+      "path": "data/journal.jsonl"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "data/journal.jsonl"
+   }
+  },
+  {
+   "id": "scv6",
+   "nama": "Mesin scv6 (multi-exchange)",
+   "repo": "scv6",
+   "adapter": "scv6",
+   "start": null,
+   "kadaluwarsaMenit": 0,
+   "berkas": {
+    "utama": [
+     {
+      "cabang": "main",
+      "path": "data/journal.json"
+     },
+     {
+      "pages": "data/journal.json"
+     }
+    ]
+   },
+   "lokal": {
+    "utama": "data/journal.json"
+   }
+  }
+ ],
+ "makro": {
+  "aktif": true,
+  "warnJam": 72,
+  "kuningJam": 24,
+  "merahJam": 2,
+  "sebelumJam": {
+   "tinggi": 1.5,
+   "sedang": 0.5
+  },
+  "sesudahJam": {
+   "tinggi": 3,
+   "sedang": 1
+  },
+  "opex": true,
+  "minKalenderHari": 21,
+  "sinkron": {
+   "aktif": true,
+   "jamCache": 6,
+   "timeoutMs": 20000,
+   "userAgent": "monitor-kalender/1.0 (+https://github.com/triasnugra)"
+  }
+ }
+}
