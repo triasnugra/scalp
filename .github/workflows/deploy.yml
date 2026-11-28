@@ -1,0 +1,26 @@
+name: deploy
+on:
+  push: {branches: [main]}
+  schedule: [{cron: '*/15 * * * *'}]   # best-effort; GitHub bisa menunda. Mesin scalping memperbarui jurnal tiap 5-15 menit
+  workflow_dispatch:
+permissions: {contents: read, pages: write, id-token: write}
+concurrency: {group: pages, cancel-in-progress: true}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: {name: github-pages, url: '${{ steps.d.outputs.page_url }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - name: Uji unit (kalender, adapter, statistik, build offline)
+        run: node --test "test/*.test.mjs"
+      - name: Build situs (data.json, index.html, arsip, laporan)
+        run: node scripts/build.mjs
+        env: {MONITOR_TOKEN: '${{ secrets.MONITOR_TOKEN }}'}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: site}
+      - id: d
+        uses: actions/deploy-pages@v4
